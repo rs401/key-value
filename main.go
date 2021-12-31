@@ -65,6 +65,10 @@ func initializeTransactionLog() error {
 	return err
 } // END initializeTransactionLog
 
+func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Not Allowed", http.StatusMethodNotAllowed)
+}
+
 // PUT /v1/{key}
 func kvPutHandler(w http.ResponseWriter, r *http.Request) {
 	// Get the key from the request
@@ -153,6 +157,8 @@ func main() {
 	r.HandleFunc("/v1/{key}", kvPutHandler).Methods("PUT")
 	r.HandleFunc("/v1/{key}", kvGetHandler).Methods("GET")
 	r.HandleFunc("/v1/{key}", kvDeleteHandler).Methods("DELETE")
+	r.HandleFunc("/v1/", methodNotAllowedHandler)
+	r.HandleFunc("/v1/{key}", methodNotAllowedHandler)
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }

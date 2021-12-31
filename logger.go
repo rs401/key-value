@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sync"
 )
 
 type TransactionLogger interface {
 	WriteDelete(key string)
 	WritePut(key, value string)
 	Err() <-chan error
-
 	ReadEvents() (<-chan Event, <-chan error)
-
 	Run()
+	Close() error
 }
 
 type EventType byte
@@ -37,9 +37,11 @@ type FileTransactionLogger struct {
 	errors       <-chan error
 	lastSequence uint64
 	file         *os.File
+	wg           *sync.WaitGroup
 }
 
 func (l *FileTransactionLogger) WriteDelete(key string) {
+	l.wg.Add(1)
 	l.events <- Event{
 		EventType: EventDelete,
 		Key:       key,
@@ -51,6 +53,7 @@ func (l *FileTransactionLogger) Err() <-chan error {
 }
 
 func (l *FileTransactionLogger) WritePut(key, value string) {
+	l.wg.Add(1)
 	l.events <- Event{
 		EventType: EventPut,
 		Key:       key,
@@ -58,13 +61,15 @@ func (l *FileTransactionLogger) WritePut(key, value string) {
 	}
 }
 
-func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+func NewFileTransactionLogger(filename string) (*FileTransactionLogger, error) {
+	var err error
+	var l FileTransactionLogger = FileTransactionLogger{wg: &sync.WaitGroup{}}
+	l.file, err = os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open transaction log file: %w", err)
 	}
 
-	return &FileTransactionLogger{file: file}, nil
+	return &l, nil
 }
 
 func (l *FileTransactionLogger) Run() {
@@ -90,9 +95,10 @@ func (l *FileTransactionLogger) Run() {
 				errors <- err
 				return
 			}
+			l.wg.Done()
 		}
 	}()
-}
+} // END Run
 
 func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	scanner := bufio.NewScanner(l.file)
@@ -142,4 +148,18 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	}()
 
 	return outEvent, outError
+} // END ReadEvents
+
+func (l *FileTransactionLogger) Close() error {
+	l.wg.Wait()
+	// Close events chan
+	if l.events != nil {
+		close(l.events)
+	}
+	// Close transaction file
+	return l.file.Close()
+}
+
+func (l *FileTransactionLogger) Wait() {
+	l.wg.Wait()
 }
