@@ -14,7 +14,7 @@ func fileExists(filename string) bool {
 }
 
 func TestFileTransactionLogger_NewFileTransactionLogger(t *testing.T) {
-	const filename = "/tmp/new-file-transaction-logger.txt"
+	const filename = "/tmp/new-ft-logger.txt"
 	defer os.Remove(filename)
 
 	tl, err := NewFileTransactionLogger(filename)
@@ -24,7 +24,7 @@ func TestFileTransactionLogger_NewFileTransactionLogger(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Errorf("Got error: %w", err)
+		t.Errorf("Got error: %v", err)
 	}
 
 	if !fileExists(filename) {
@@ -38,7 +38,7 @@ func TestFileTransactionLogger_WritePut(t *testing.T) {
 
 	tl, err := NewFileTransactionLogger(filename)
 	if err != nil {
-		t.Errorf("Got error: %w", err)
+		t.Errorf("Got error: %v", err)
 	}
 	tl.Run()
 	defer tl.Close()
@@ -60,7 +60,7 @@ func TestFileTransactionLogger_WritePut(t *testing.T) {
 
 	tlResult, err := NewFileTransactionLogger(filename)
 	if err != nil {
-		t.Errorf("Got error: %w", err)
+		t.Errorf("Got error: %v", err)
 	}
 	defer tlResult.Close()
 

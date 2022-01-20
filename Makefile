@@ -12,7 +12,7 @@ clean:
 	rm ${PROG_NAME}-windows
 
 run:
-	go run main.go
+	go run .
 
 test:
 	go test -v

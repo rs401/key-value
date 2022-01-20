@@ -36,7 +36,13 @@ func logMiddleware(next http.Handler) http.Handler {
 func initializeTransactionLog() error {
 	var err error
 
-	logWriter, err = NewFileTransactionLogger("transaction.log")
+	// logWriter, err = NewFileTransactionLogger("transaction.log")
+	logWriter, err = NewPGTransactionLogger(PGConfig{
+		dbName:   "postgres",
+		host:     "127.0.0.1",
+		user:     "postgres",
+		password: "Admin@123",
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create event logger: %w", err)
 	}
@@ -49,12 +55,15 @@ func initializeTransactionLog() error {
 	// the loop will end.
 	for ok && err == nil {
 		select {
-		case err, ok = <-errors: // Retrieve any errors
+		// Retrieve any errors
+		case err, ok = <-errors:
 		case e, ok = <-events:
 			switch e.EventType {
-			case EventDelete: // Got a DELETE event!
+			// Got a DELETE event!
+			case EventDelete:
 				err = Delete(e.Key)
-			case EventPut: // Got a PUT event!
+			// Got a PUT event!
+			case EventPut:
 				err = Put(e.Key, e.Value)
 			}
 		}
@@ -160,5 +169,6 @@ func main() {
 	r.HandleFunc("/v1/", methodNotAllowedHandler)
 	r.HandleFunc("/v1/{key}", methodNotAllowedHandler)
 
+	log.Println("Listening on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
